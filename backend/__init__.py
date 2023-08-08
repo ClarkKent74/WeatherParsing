@@ -22,7 +22,7 @@ logging.basicConfig(level=logging.INFO, filename="log.log", filemode="w")
 async def main():
     print("Parse")
     while True:
-        await asyncio.sleep(3)
+        await asyncio.sleep(600)
         await parse_and_save_weather_for_all_cities()
 
 
