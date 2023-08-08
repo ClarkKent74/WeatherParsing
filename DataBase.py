@@ -5,10 +5,9 @@ import time
 import psycopg2
 import logging
 import asyncio
-
 from sqlalchemy import select, delete
 from backend.models import Base, SessionManager
-from backend.schemas import DefaultResponse
+from backend.schemas import DefaultResponse, PressureResponse, TemperatureResponse, AllWeatherResponse, AverageResponse
 from backend.models import (
     City,
     Weather,
@@ -20,22 +19,14 @@ async def view_all(id: int):
     logging.info("Находим город в базе")
     try:
         async with SessionManager() as session:
-            cities_id = (await session.execute(select(City.id).filter(City.id == id))).scalars().one()
             logging.info("Находим город в базе")
-            if not cities_id:
-                response = DefaultResponse(error=True, message="Город не найден или "
-                                                               "введено некорректное значение", payload=None)
 
             result = []
 
-            weathers_id = (await session.execute(select(CityWeather.weather_id).
-                                                 filter(CityWeather.city_id == cities_id))).all()
-
-            result_id = []
-            for weather_id in weathers_id:
-                result_id.append(weather_id[0])
-
-            weathers = (await session.execute(select(Weather).filter(Weather.id.in_(result_id)))).all()
+            weathers = (await session.execute(select(Weather)
+                                              .join(CityWeather, Weather.id == CityWeather.weather_id)
+                                              .join(City, CityWeather.city_id == City.id).filter(City.id == id)
+                                              .order_by(Weather.date.desc()).limit(1))).all()
             for weather in weathers:
                 weather_dict = {
                     "id": weather[0].id,
@@ -49,7 +40,11 @@ async def view_all(id: int):
                 logging.info("Получаем полную статистику о погоде")
                 result.append(weather_dict)
             if len(result):
-                response = DefaultResponse(error=False, message="Ok", payload=result[-1])
+                response = DefaultResponse(error=False, message="Ok",
+                                           payload=AllWeatherResponse(weather=result))
+            else:
+                response = DefaultResponse(error=True, message="введено некорректное значение "
+                                                               "или города нет в базе", payload=None)
     except Exception as e:
         logging.error("Exception", exc_info=True)
         response = DefaultResponse(error=True, message="введено некорректное значение "
@@ -61,31 +56,27 @@ async def view_pressure(id: int):
     try:
         async with SessionManager() as session:
             logging.info("Находим город в базе")
-            cities_id = (await session.execute(select(City.id).filter(City.id == id))).scalars().one()
-            if not cities_id:
-                response = DefaultResponse(error=True, message="Город не найден или "
-                                                               "введено некорректное значение", payload=None)
             result = []
+            weathers = (await session.execute(select(Weather)
+                                              .join(CityWeather, Weather.id == CityWeather.weather_id)
+                                              .join(City, CityWeather.city_id == City.id).filter(City.id == id)
+                                              .order_by(Weather.date.desc()).limit(1))).all()
 
-            weathers_id = (await session.execute(
-                select(CityWeather.weather_id).filter(CityWeather.city_id == cities_id))).all()
-
-            result_id = []
-            for weather_id in weathers_id:
-                result_id.append(weather_id[0])
-
-            weathers = (await session.execute(select(Weather).filter(Weather.id.in_(result_id)))).all()
             for weather in weathers:
                 weather_dict = {
                     "pressure": weather[0].pressure,
                 }
                 logging.info("Получаем информацию о давлении")
-                result.append(weather_dict)
+                result = list(weather_dict.values())
             if len(result):
-                response = DefaultResponse(error=False, message="Ok", payload=result[-1])
+                response = DefaultResponse(error=False,
+                                           message="OK",
+                                           payload=PressureResponse(pressure=result, id=id, date=weather[0].date))
+            else:
+                response = DefaultResponse(error=True, message="введено некорректное значение "
+                                                               "или города нет в базе", payload=None)
 
     except Exception as e:
-        #db.rollback()
         logging.error("Exception", exc_info=True)
         response = DefaultResponse(error=True, message="введено некорректное значение "
                                                        "или города нет в базе", payload=None)
@@ -96,29 +87,25 @@ async def view_pressure(id: int):
 async def view_temp(id: int):
     try:
         async with SessionManager() as session:
-            cities_id = (await session.execute(select(City.id).filter(City.id == id))).scalars().one()
             logging.info("Находим город в базе")
-            if not cities_id:
-                response = DefaultResponse(error=True, message="Города нет в базе или "
-                                                                "введено некорректное значение", payload=None)
             result = []
-
-            weathers_id = (await session.execute(
-                select(CityWeather.weather_id).filter(CityWeather.city_id == cities_id))).all()
-
-            result_id = []
-            for weather_id in weathers_id:
-                result_id.append(weather_id[0])
-
-            weathers = (await session.execute(select(Weather).filter(Weather.id.in_(result_id)))).all()
+            weathers = (await session.execute(select(Weather)
+                                              .join(CityWeather, Weather.id == CityWeather.weather_id)
+                                              .join(City, CityWeather.city_id == City.id).filter(City.id == id)
+                                              .order_by(Weather.date.desc()).limit(1))).all()
             for weather in weathers:
                 weather_dict = {
                     "temperature": weather[0].temperature,
                 }
                 logging.info("Получаем температуру")
-                result.append(weather_dict)
+                result = list(weather_dict.values())
             if len(result):
-                response = DefaultResponse(error=False, message="Ok", payload=result[-1])
+                response = DefaultResponse(error=False,
+                                           message="OK",
+                                           payload=TemperatureResponse(temperature=result, id=id, date=weather[0].date))
+            else:
+                response = DefaultResponse(error=True, message="введено некорректное значение "
+                                                               "или города нет в базе", payload=None)
     except Exception as e:
         logging.error("Exception", exc_info=True)
         response = DefaultResponse(error=True, message="введено некорректное значение "
@@ -133,20 +120,12 @@ async def add(town: str):
                 response = DefaultResponse(error=True, message="Город не может содержать цифры", payload=None)
             else:
                 weather_parser = WeatherParsing(town)
-                city_name = await weather_parser.get_city()
+                weather_data = await weather_parser.parse_weather_data()
+                city_name = weather_data["city"]
                 city = (await session.execute(select(City).filter(City.city == city_name))).first()
                 logging.info("Находим город в базе")
                 if not city:
-                    weather = Weather(
-                        temperature=str(await weather_parser.get_cur_weather()),
-                        pressure=str(await weather_parser.get_pressure()),
-                        humidity=str(await weather_parser.get_humidity()),
-                        wind=str(await weather_parser.get_wind()),
-                        feeling=str(await weather_parser.get_feeling()),
-                        date=datetime.now(),
-                    )
                     city_entity = City(city=city_name)
-                    city_entity.weathers.append(weather)
                     logging.info("Добавляем город на мониторинг")
                     session.add(city_entity)
                     await session.commit()
@@ -162,25 +141,15 @@ async def add(town: str):
     return response
 
 
-async def viewing_statistics(id: int):
+async def viewing_statistics(id: int, limit, offset):
     try:
         async with SessionManager() as session:
-            cities_id = (await session.execute(select(City.id).filter(City.id == id))).scalars().one()
-            logging.info("Находим город в базе")
-            if not cities_id:
-                response = DefaultResponse(error=True, message="Город не найден или "
-                                                               "введено некорректное значение", payload=None)
-
             result = []
+            weathers = (await session.execute(select(Weather)
+                                              .join(CityWeather, Weather.id == CityWeather.weather_id)
+                                              .join(City, CityWeather.city_id == City.id).filter(City.id == id)
+                                              .order_by(Weather.date.desc()).limit(limit).offset(offset))).all()
 
-            weathers_id = (await session.execute(select(CityWeather.weather_id).
-                                                 filter(CityWeather.city_id == cities_id))).all()
-
-            result_id = []
-            for weather_id in weathers_id:
-                result_id.append(weather_id[0])
-
-            weathers = (await session.execute(select(Weather).filter(Weather.id.in_(result_id)))).all()
             for weather in weathers:
                 weather_dict = {
                     "id": weather[0].id,
@@ -194,9 +163,13 @@ async def viewing_statistics(id: int):
                 logging.info("Получаем полную статистику о погоде")
                 result.append(weather_dict)
             if len(result):
-                response = DefaultResponse(error=False, message="Ok", payload=result)
+                response = DefaultResponse(error=False, message="Ok", payload=AllWeatherResponse(weather=result))
+            else:
+                response = DefaultResponse(error=True, message="введено некорректное значение"
+                                                               "или город не найден", payload=None)
+
     except Exception as e:
-        #await session.rollback()
+        # await session.rollback()
         logging.error("Exception", exc_info=True)
         response = DefaultResponse(error=True, message="введено некорректное значение"
                                                        "или город не найден", payload=None)
@@ -207,7 +180,6 @@ async def viewing_statistics(id: int):
 async def remove(id: int):
     try:
         async with SessionManager() as session:
-
 
             logging.info("Находим город в базе")
 
@@ -223,7 +195,8 @@ async def remove(id: int):
     except Exception as e:
         # db.rollback()
         logging.error("Exception", exc_info=True)
-        response = DefaultResponse(error=True, message="Введено некорректное значение или города нет в базе", payload=None)
+        response = DefaultResponse(error=True, message="Введено некорректное значение или города нет в базе",
+                                   payload=None)
         print(e)
     return response
 
@@ -231,40 +204,44 @@ async def remove(id: int):
 async def average_temp(id: int, data: str):
     try:
         async with SessionManager() as session:
-            cities_id = (await session.execute(select(City.id).filter(City.id == id))).scalars().one()
-            logging.info("Находим город в базе")
-            if not cities_id:
+            city = (await session.execute(select(City).filter(City.id == id))).scalars().one()
+
+            if not city:
                 response = DefaultResponse(error=True, message="Города нет в базе или "
                                                                "введено некорректное значение", payload=None)
-            result = []
+            else:
 
-            weathers_id = (await session.execute(
-                select(CityWeather.weather_id).filter(CityWeather.city_id == cities_id))).all()
+                parsed_date = datetime.strptime(data, "%Y-%m-%d").date()
 
-            result_id = []
-            for id in weathers_id:
-                result_id.append(id[0])
+                weather_ids = (await session.execute(
+                    select(CityWeather.weather_id)
+                    .join(Weather, Weather.id == CityWeather.weather_id)
+                    .filter(CityWeather.city_id == id, Weather.date == parsed_date)
+                )).all()
 
-            weathers = (await session.execute(select(Weather).filter(Weather.id.in_(result_id)))).all()
-            for weather in weathers:
-                weather_dict = {
-                    "temperature": weather[0].temperature,
-                }
-                result.append(weather_dict["temperature"])
-            sum_temp = 0
-            for temp in result:
-                sum_temp += int(float(temp))
+                if not weather_ids:
+                    response = DefaultResponse(error=True, message="Данных о погоде для указанной даты нет в базе",
+                                               payload=None)
+                else:
 
-            average_temperature = round(sum_temp / len(result), 2)
-            logging.info("Получаем среднюю температуру")
+                    weather_ids = [id[0] for id in weather_ids]
 
-        response = DefaultResponse(error=False, message="Ok", payload=average_temperature)
+                    temperatures = (await session.execute(
+                        select(Weather.temperature)
+                        .filter(Weather.id.in_(weather_ids))
+                    )).all()
+
+                    temperatures = [float(temp[0]) for temp in temperatures]
+
+                    average_temperature = round(sum(temperatures) / len(temperatures), 2)
+                    logging.info("Получаем среднюю температуру")
+
+                    response = DefaultResponse(error=False,
+                                               message="Ok",
+                                               payload=AverageResponse(temperature=average_temperature,
+                                                                       id=city.id, date=data))
     except Exception as e:
         logging.error("Exception", exc_info=True)
-        response = DefaultResponse(error=True, message="Города или даты нет в базе или "
-                                                       "введено некорректное значение", payload=None)
+        response = DefaultResponse(error=True, message="Введено некорректное значение", payload=None)
+        print(e)
     return response
-
-
-
-
