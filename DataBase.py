@@ -1,21 +1,24 @@
-from datetime import datetime, date
-from backend.helpers import WeatherParsing, check_digit
-import schedule
-import time
-import psycopg2
 import logging
-import asyncio
+from datetime import datetime
+
 from sqlalchemy import select, delete
-from backend.models import Base, SessionManager
-from backend.schemas import DefaultResponse, PressureResponse, TemperatureResponse, AllWeatherResponse, AverageResponse
+
+from backend.helpers import WeatherParsing, check_digit
 from backend.models import (
     City,
     Weather,
     CityWeather
 )
+from backend.models import SessionManager
+from backend.schemas import DefaultResponse, PressureResponse, TemperatureResponse, AllWeatherResponse, AverageResponse
 
 
-async def view_all(id: int):
+async def view_all(id: int) -> DefaultResponse:
+    """
+    Выводим все поля погоды.
+    :param id: вводим id города
+    :return: DefaultResponse
+    """
     logging.info("Находим город в базе")
     try:
         async with SessionManager() as session:
@@ -52,7 +55,12 @@ async def view_all(id: int):
     return response
 
 
-async def view_pressure(id: int):
+async def view_pressure(id: int) -> DefaultResponse:
+    """
+    Выводим давление.
+    :param id: вводим id города.
+    :return: DefaultResponse
+    """
     try:
         async with SessionManager() as session:
             logging.info("Находим город в базе")
@@ -84,7 +92,12 @@ async def view_pressure(id: int):
     return response
 
 
-async def view_temp(id: int):
+async def view_temp(id: int) -> DefaultResponse:
+    """
+    Выводим температуру.
+    :param id: вводим id города
+    :return: DefaultResponse
+    """
     try:
         async with SessionManager() as session:
             logging.info("Находим город в базе")
@@ -113,7 +126,12 @@ async def view_temp(id: int):
     return response
 
 
-async def add(town: str):
+async def add(town: str) -> DefaultResponse:
+    """
+    Добавляем город на мониторинг.
+    :param town: вводим название города на английском
+    :return: DefaultResponse
+    """
     try:
         async with SessionManager() as session:
             if check_digit(town):
@@ -141,7 +159,14 @@ async def add(town: str):
     return response
 
 
-async def viewing_statistics(id: int, limit, offset):
+async def viewing_statistics(id: int, limit: int, offset: int) -> DefaultResponse:
+    """
+    Выводим всю существующую статистику.
+    :param id: вводим id города
+    :param limit: вводим количество записей, которое хотим получить
+    :param offset: вводим отступ
+    :return: DefaultResponse
+    """
     try:
         async with SessionManager() as session:
             result = []
@@ -177,7 +202,12 @@ async def viewing_statistics(id: int, limit, offset):
     return response
 
 
-async def remove(id: int):
+async def remove(id: int) -> DefaultResponse:
+    """
+    Удаляем город с мониторинга.
+    :param id: вводим id города
+    :return: DefaultResponse
+    """
     try:
         async with SessionManager() as session:
 
@@ -201,7 +231,13 @@ async def remove(id: int):
     return response
 
 
-async def average_temp(id: int, data: str):
+async def average_temp(id: int, data: str) -> DefaultResponse:
+    """
+    Получаем среднюю температуру.
+    :param id: вводим id города
+    :param data: вводим дату в формате 2023-08-08
+    :return: DefaultResponse
+    """
     try:
         async with SessionManager() as session:
             city = (await session.execute(select(City).filter(City.id == id))).scalars().one()

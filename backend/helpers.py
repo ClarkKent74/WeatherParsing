@@ -1,26 +1,26 @@
-import requests
-from bs4 import BeautifulSoup as bs
-import logging
-from backend.schemas import DefaultResponse
-import os
-import token
-import aiohttp
 import asyncio
-from backend.models import SessionManager, City, Weather, CityWeather
-from sqlalchemy import select, delete
+import logging
+import os
 from datetime import datetime
+from typing import Optional
+
+import aiohttp
+from sqlalchemy import select
+
+from backend.models import SessionManager, City, Weather, CityWeather
+from backend.schemas import DefaultResponse
 
 TOKEN = os.environ['TOKEN_WEATHER']
 
 
-
 class WeatherParsing:
-
-    def __init__(self, city):
+    """Класс для парсинга погоды."""
+    def __init__(self, city: str):
         self.city = city
         self.url = f"https://api.openweathermap.org/data/2.5/weather?q={self.city}&appid={TOKEN}&units=metric"
 
     async def get_data(self):
+        """Получаем .json файл с погодой."""
         try:
             logging.info("Парсим город")
             async with aiohttp.ClientSession() as session:
@@ -31,7 +31,8 @@ class WeatherParsing:
             logging.error("Exception", exc_info=True)
             return "none"
 
-    async def parse_weather_data(self):
+    async def parse_weather_data(self) -> Optional[dict]:
+        """Берем из файла погоду."""
         try:
             data = await self.get_data()
             if data:
@@ -50,14 +51,24 @@ class WeatherParsing:
             return {"error": str(e)}
 
 
-def check_digit(town: str):
+def check_digit(town: str) -> bool:
+    """
+    Проверка на наличие цифр в городе.
+    :param town: название города на английском.
+    :return: bool
+    """
     for symb in town:
         if symb.isdigit():
             return True
     return False
 
 
-async def parse_and_save_weather_for_city(city):
+async def parse_and_save_weather_for_city(city: str):
+    """
+    Парсим погоду и записываем в базу данных.
+    :param city: получаем название города на английском
+    :return: DefaultResponse в случае ошибки
+    """
     print(city)
     try:
         async with SessionManager() as session:
@@ -94,6 +105,7 @@ async def parse_and_save_weather_for_city(city):
 
 
 async def parse_and_save_weather_for_all_cities():
+    """Запускаем парсинг для всех городов из базы."""
     async with SessionManager() as session:
         cities = (await session.execute(select(City))).all()
         logging.info("Находим города в базе")
