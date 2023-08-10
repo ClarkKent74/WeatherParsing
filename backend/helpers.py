@@ -10,6 +10,7 @@ from sqlalchemy import select
 from backend.models import SessionManager, City, Weather, CityWeather
 from backend.schemas import DefaultResponse
 
+
 TOKEN = os.environ['TOKEN_WEATHER']
 
 
@@ -19,7 +20,7 @@ class WeatherParsing:
         self.city = city
         self.url = f"https://api.openweathermap.org/data/2.5/weather?q={self.city}&appid={TOKEN}&units=metric"
 
-    async def get_data(self):
+    async def get_data(self) -> Optional[dict]:
         """Получаем .json файл с погодой."""
         try:
             logging.info("Парсим город")
@@ -29,7 +30,7 @@ class WeatherParsing:
                     return data
         except Exception as e:
             logging.error("Exception", exc_info=True)
-            return "none"
+            return None
 
     async def parse_weather_data(self) -> Optional[dict]:
         """Берем из файла погоду."""
@@ -63,7 +64,7 @@ def check_digit(town: str) -> bool:
     return False
 
 
-async def parse_and_save_weather_for_city(city: str):
+async def parse_and_save_weather_for_city(city: City):
     """
     Парсим погоду и записываем в базу данных.
     :param city: получаем название города на английском

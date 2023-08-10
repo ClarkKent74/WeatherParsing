@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import relationship
 
+
 db_user = os.environ['DB_USER']
 db_pass = os.environ['DB_PASS']
 db_host = os.environ['DB_HOST']
@@ -50,7 +51,7 @@ async def SessionManager() -> Session:
 class CityWeather(Base):
     """Класс, связывающий таблицы City и Weather."""
     __tablename__ = "city_weather"
-    city_id = Column(Integer, sa.ForeignKey('City.id'), primary_key=True)
+    city_id = Column(Integer, sa.ForeignKey('city.id'), primary_key=True)
     weather_id = Column(Integer, sa.ForeignKey('weather.id'), primary_key=True)
     weathers = relationship('Weather')
     cities = relationship('City')
@@ -58,7 +59,7 @@ class CityWeather(Base):
 
 class City(Base):
     """Класс для таблицы с городами."""
-    __tablename__ = "City"
+    __tablename__ = "city"
     id = Column(Integer, primary_key=True, index=True)
     city = Column(String)
 

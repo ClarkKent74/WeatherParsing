@@ -30,24 +30,31 @@ async def view_all(id: int) -> DefaultResponse:
                                               .join(CityWeather, Weather.id == CityWeather.weather_id)
                                               .join(City, CityWeather.city_id == City.id).filter(City.id == id)
                                               .order_by(Weather.date.desc()).limit(1))).all()
-            for weather in weathers:
-                weather_dict = {
-                    "id": weather[0].id,
-                    "temperature": weather[0].temperature,
-                    "pressure": weather[0].pressure,
-                    "humidity": weather[0].humidity,
-                    "wind": weather[0].wind,
-                    "feeling": weather[0].feeling,
-                    "date": weather[0].date.strftime("%Y-%m-%d"),
-                }
-                logging.info("Получаем полную статистику о погоде")
-                result.append(weather_dict)
-            if len(result):
-                response = DefaultResponse(error=False, message="Ok",
-                                           payload=AllWeatherResponse(weather=result))
-            else:
-                response = DefaultResponse(error=True, message="введено некорректное значение "
-                                                               "или города нет в базе", payload=None)
+
+            city_id = id
+            city = (await session.execute(select(City).filter(City.id == city_id))).first()
+            if city:
+                if not weathers:
+                    response = DefaultResponse(error=True, message="Погода еще парсится", payload=None)
+                else:
+                    for weather in weathers:
+                        weather_dict = {
+                            "id": weather[0].id,
+                            "temperature": weather[0].temperature,
+                            "pressure": weather[0].pressure,
+                            "humidity": weather[0].humidity,
+                            "wind": weather[0].wind,
+                            "feeling": weather[0].feeling,
+                            "date": weather[0].date.strftime("%Y-%m-%d"),
+                        }
+                        logging.info("Получаем полную статистику о погоде")
+                        result.append(weather_dict)
+                    if len(result):
+                        response = DefaultResponse(error=False, message="Ok",
+                                                   payload=AllWeatherResponse(weather=result))
+                    else:
+                        response = DefaultResponse(error=True, message="введено некорректное значение "
+                                                                       "или города нет в базе", payload=None)
     except Exception as e:
         logging.error("Exception", exc_info=True)
         response = DefaultResponse(error=True, message="введено некорректное значение "
@@ -70,19 +77,26 @@ async def view_pressure(id: int) -> DefaultResponse:
                                               .join(City, CityWeather.city_id == City.id).filter(City.id == id)
                                               .order_by(Weather.date.desc()).limit(1))).all()
 
-            for weather in weathers:
-                weather_dict = {
-                    "pressure": weather[0].pressure,
-                }
-                logging.info("Получаем информацию о давлении")
-                result = list(weather_dict.values())
-            if len(result):
-                response = DefaultResponse(error=False,
-                                           message="OK",
-                                           payload=PressureResponse(pressure=result, id=id, date=weather[0].date))
-            else:
-                response = DefaultResponse(error=True, message="введено некорректное значение "
-                                                               "или города нет в базе", payload=None)
+            city_id = id
+            city = (await session.execute(select(City).filter(City.id == city_id))).first()
+            if city:
+                if not weathers:
+                    response = DefaultResponse(error=True, message="Погода еще парсится", payload=None)
+                else:
+                    for weather in weathers:
+                        weather_dict = {
+                            "pressure": weather[0].pressure,
+                        }
+                        logging.info("Получаем информацию о давлении")
+                        result = list(weather_dict.values())
+                    if len(result):
+                        response = DefaultResponse(error=False,
+                                                   message="OK",
+                                                   payload=PressureResponse(pressure=result, id=id,
+                                                                            date=weather[0].date))
+                    else:
+                        response = DefaultResponse(error=True, message="введено некорректное значение "
+                                                                       "или города нет в базе", payload=None)
 
     except Exception as e:
         logging.error("Exception", exc_info=True)
@@ -106,19 +120,26 @@ async def view_temp(id: int) -> DefaultResponse:
                                               .join(CityWeather, Weather.id == CityWeather.weather_id)
                                               .join(City, CityWeather.city_id == City.id).filter(City.id == id)
                                               .order_by(Weather.date.desc()).limit(1))).all()
-            for weather in weathers:
-                weather_dict = {
-                    "temperature": weather[0].temperature,
-                }
-                logging.info("Получаем температуру")
-                result = list(weather_dict.values())
-            if len(result):
-                response = DefaultResponse(error=False,
-                                           message="OK",
-                                           payload=TemperatureResponse(temperature=result, id=id, date=weather[0].date))
-            else:
-                response = DefaultResponse(error=True, message="введено некорректное значение "
-                                                               "или города нет в базе", payload=None)
+            city_id = id
+            city = (await session.execute(select(City).filter(City.id == city_id))).first()
+            if city:
+                if not weathers:
+                    response = DefaultResponse(error=True, message="Погода еще парсится", payload=None)
+                else:
+                    for weather in weathers:
+                        weather_dict = {
+                            "temperature": weather[0].temperature,
+                        }
+                        logging.info("Получаем температуру")
+                        result = list(weather_dict.values())
+                    if len(result):
+                        response = DefaultResponse(error=False,
+                                                   message="OK",
+                                                   payload=TemperatureResponse(temperature=result, id=id,
+                                                                               date=weather[0].date))
+                    else:
+                        response = DefaultResponse(error=True, message="введено некорректное значение "
+                                                                       "или города нет в базе", payload=None)
     except Exception as e:
         logging.error("Exception", exc_info=True)
         response = DefaultResponse(error=True, message="введено некорректное значение "
@@ -174,31 +195,35 @@ async def viewing_statistics(id: int, limit: int, offset: int) -> DefaultRespons
                                               .join(CityWeather, Weather.id == CityWeather.weather_id)
                                               .join(City, CityWeather.city_id == City.id).filter(City.id == id)
                                               .order_by(Weather.date.desc()).limit(limit).offset(offset))).all()
-
-            for weather in weathers:
-                weather_dict = {
-                    "id": weather[0].id,
-                    "temperature": weather[0].temperature,
-                    "pressure": weather[0].pressure,
-                    "humidity": weather[0].humidity,
-                    "wind": weather[0].wind,
-                    "feeling": weather[0].feeling,
-                    "date": weather[0].date.strftime("%Y-%m-%d"),
-                }
-                logging.info("Получаем полную статистику о погоде")
-                result.append(weather_dict)
-            if len(result):
-                response = DefaultResponse(error=False, message="Ok", payload=AllWeatherResponse(weather=result))
-            else:
-                response = DefaultResponse(error=True, message="введено некорректное значение"
-                                                               "или город не найден", payload=None)
+            city_id = id
+            city = (await session.execute(select(City).filter(City.id == city_id))).first()
+            if city:
+                if not weathers:
+                    response = DefaultResponse(error=True, message="Погода еще парсится", payload=None)
+                else:
+                    for weather in weathers:
+                        weather_dict = {
+                            "id": weather[0].id,
+                            "temperature": weather[0].temperature,
+                            "pressure": weather[0].pressure,
+                            "humidity": weather[0].humidity,
+                            "wind": weather[0].wind,
+                            "feeling": weather[0].feeling,
+                            "date": weather[0].date.strftime("%Y-%m-%d"),
+                        }
+                        logging.info("Получаем полную статистику о погоде")
+                        result.append(weather_dict)
+                    if len(result):
+                        response = DefaultResponse(error=False, message="Ok",
+                                                   payload=AllWeatherResponse(weather=result))
+                    else:
+                        response = DefaultResponse(error=True, message="введено некорректное значение"
+                                                                       "или город не найден", payload=None)
 
     except Exception as e:
-        # await session.rollback()
         logging.error("Exception", exc_info=True)
         response = DefaultResponse(error=True, message="введено некорректное значение"
                                                        "или город не найден", payload=None)
-        print(e)
     return response
 
 
@@ -279,5 +304,19 @@ async def average_temp(id: int, data: str) -> DefaultResponse:
     except Exception as e:
         logging.error("Exception", exc_info=True)
         response = DefaultResponse(error=True, message="Введено некорректное значение", payload=None)
-        print(e)
+    return response
+
+
+async def view_cities() -> DefaultResponse:
+    try:
+        async with SessionManager() as session:
+            result = (await session.execute(select(City.city))).all()
+            cities_list = [cities[0] for cities in result]
+            if cities_list:
+                response = DefaultResponse(error=False, message="Ok", payload=cities_list)
+            else:
+                response = DefaultResponse(error=False, message="Ok", payload="Ни одного города пока не добавлено.")
+    except Exception as e:
+        logging.error("Exception", exc_info=True)
+        response = DefaultResponse(error=True, message="Некорректный ввод", payload=None)
     return response

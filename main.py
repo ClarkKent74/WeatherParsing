@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 
-from DataBase import view_all, add, viewing_statistics, view_pressure, view_temp, remove, average_temp
+from DataBase import view_all, add, viewing_statistics, view_pressure, view_temp, remove, average_temp, view_cities
 from backend.schemas import DefaultResponse
 
 app = FastAPI(
@@ -85,6 +85,16 @@ async def get_average_temp(id: int, data: str = "2023-08-08") -> DefaultResponse
     :return: DefaultResponse
     """
     response = await average_temp(id, data)
+    return response
+
+
+@app.get("/weather/cities_list", response_model=DefaultResponse)
+async def get_cities_list() -> DefaultResponse:
+    """
+    Выводим список городов на парсинге.
+    :return: DefaultResponse
+    """
+    response = await view_cities()
     return response
 
 
